@@ -55,18 +55,36 @@ class TestPatchRunner:
 
     def validate(self):
         LOG.info('Validating dependency and licenses')
-        proc = Popen([
-            '/bin/bash', '-c',
-            'mvn clean enforcer:enforce apache-rat:check --batch-mode --fail-at-end|tee ' + TARGET_DIR + '/validation.txt;'
-            + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'], stdout=sys.stdout, stderr=sys.stderr)
+        proc = Popen(
+            [
+                '/bin/bash',
+                '-c',
+                (
+                    f'mvn clean enforcer:enforce apache-rat:check --batch-mode --fail-at-end|tee {TARGET_DIR}/validation.txt;'
+                    + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'
+                ),
+            ],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+
         return proc.wait()
 
     def checkstyle(self):
         LOG.info('Validating checkstyles')
-        proc = Popen([
-            '/bin/bash', '-c',
-            'mvn clean checkstyle:check --batch-mode --fail-at-end|tee -a ' + TARGET_DIR + '/validation.txt;'
-            + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'], stdout=sys.stdout, stderr=sys.stderr)
+        proc = Popen(
+            [
+                '/bin/bash',
+                '-c',
+                (
+                    f'mvn clean checkstyle:check --batch-mode --fail-at-end|tee -a {TARGET_DIR}/validation.txt;'
+                    + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'
+                ),
+            ],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+
         return proc.wait()
 
     def compile(self):
@@ -81,7 +99,7 @@ class TestPatchRunner:
         if ret != 0:
             LOG.warning('The compilation has failed.')
         else:
-            with open(TARGET_DIR + '/buildWarnings.txt') as f:
+            with open(f'{TARGET_DIR}/buildWarnings.txt') as f:
                 for line in f:
                     if line.startswith('[WARNING]') and line.find('/target/generated-sources/') == -1:
                         self.compilationWarnings += 1
@@ -89,18 +107,36 @@ class TestPatchRunner:
 
     def run_test(self):
         LOG.info('Running tests')
-        proc = Popen([
-            '/bin/bash', '-c',
-            'mvn test --batch-mode --fail-at-end|tee ' + TARGET_DIR + '/testResults.txt;'
-            + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'], stdout=sys.stdout, stderr=sys.stderr)
+        proc = Popen(
+            [
+                '/bin/bash',
+                '-c',
+                (
+                    f'mvn test --batch-mode --fail-at-end|tee {TARGET_DIR}/testResults.txt;'
+                    + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'
+                ),
+            ],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+
         return proc.wait()
 
     def run_findbugs(self):
         LOG.info('Running findbugs')
-        proc = Popen([
-            '/bin/bash', '-c',
-            'mvn findbugs:findbugs --batch-mode --fail-at-end|tee ' + TARGET_DIR + '/findbugsResults.txt;'
-            + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'], stdout=sys.stdout, stderr=sys.stderr)
+        proc = Popen(
+            [
+                '/bin/bash',
+                '-c',
+                (
+                    f'mvn findbugs:findbugs --batch-mode --fail-at-end|tee {TARGET_DIR}/findbugsResults.txt;'
+                    + '[ $PIPESTATUS -eq 0 ] || exit $PIPESTATUS'
+                ),
+            ],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+
         return proc.wait()
 
     def parse_findbugs(self):
@@ -113,7 +149,9 @@ class TestPatchRunner:
                     name = root.find('./Project').attrib['projectName']
                     yield (name, bugs)
             except Exception as e:
-                    LOG.warning('[test-patch] Failed to parse the findbugs results from %s, reason: %s' % (f, e))
+                LOG.warning(
+                    f'[test-patch] Failed to parse the findbugs results from {f}, reason: {e}'
+                )
 
     def parse_failed_test(self):
         for f in find_files('.', 'TEST*.xml'):
@@ -126,7 +164,7 @@ class TestPatchRunner:
                 if failures > 0 or errors > 0:
                     yield name
             except Exception as e:
-                LOG.warning('[test-patch] Failed to parse the result %s, reason: %s' % (f, e))
+                LOG.warning(f'[test-patch] Failed to parse the result {f}, reason: {e}')
                 continue
 
     def run(self):
@@ -153,7 +191,7 @@ class TestPatchRunner:
             self.out.write('There are failures when running the tests.\n')
 
         self.failedTests = list(self.parse_failed_test())
-        if len(self.failedTests) == 0:
+        if not self.failedTests:
             self.out.write('There are no test failures.\n')
         else:
             self.out.write('The following tests have failed:\n')
@@ -164,14 +202,18 @@ class TestPatchRunner:
             self.out.write('There are failures when running findbugs.\n')
         else:
             self.findbugsWarnings = list(self.parse_findbugs())
-            if len(self.findbugsWarnings) == 0:
+            if not self.findbugsWarnings:
                 self.out.write('No findbugs warnings has been found.\n')
             else:
                 self.out.write('Findbugs has failed.\n')
                 for name, bugs in self.findbugsWarnings:
                     self.out.write('  Project %s has %s findbugs warnings.\n' % (name, bugs))
 
-        if self.compilationWarnings > 0 or len(self.failedTests) > 0 or len(self.findbugsWarnings) > 0:
+        if (
+            self.compilationWarnings > 0
+            or self.failedTests
+            or len(self.findbugsWarnings) > 0
+        ):
             return -1
         else:
             return 0
